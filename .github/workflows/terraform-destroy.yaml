@@ -1,0 +1,54 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: 'Type "DESTROY" to confirm destruction of resources'
+        required: true
+        default: ''
+
+env:            
+  AWS_REGION: us-east-1  
+
+jobs:
+  terraform-destroy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Validate Confirmation
+      run: |
+        if [ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]; then
+          echo "❌ Destruction cancelled. You must type 'DESTROY' to confirm."
+          exit 1
+        fi
+        echo "✅ Confirmation received. Proceeding with destruction..."
+
+    - name: Checkout
+      uses: actions/checkout@v3
+   
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+   
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Plan (Destroy)
+      run: terraform plan -destroy
+
+    - name: Terraform Destroy
+      run: terraform destroy --auto-approve
+      
+    - name: Destruction Complete
+      run: |
+        echo "🗑️ All Terraform resources have been destroyed!"
+        echo "The following resources were removed:"
+        echo "- S3 bucket: yeefei93-github-actions-app-bucket-*"
+        echo "- Random string resource"
